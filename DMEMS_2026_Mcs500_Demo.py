@@ -7,7 +7,6 @@ You can change the pattern of movement by changing the pattern_id parameter in t
 
 import mecademicpy.robot as mdr
 import numpy as np
-import math
 import threading
 import time
 
@@ -21,7 +20,6 @@ d = np.arange(num_diag)
 # Calculate the number of elements in each diagonal
 diag_counts = np.minimum(d + 1, np.minimum(num_rows, num_cols))
 diag_counts[d >= np.maximum(num_rows, num_cols)] = np.minimum(num_rows, num_cols) - (d[d >= np.maximum(num_rows, num_cols)] - (np.maximum(num_rows, num_cols) - 1))
-
 
 def wait_for_input(prompt='Press Enter to continue...'):
     """Wait for the user to press Enter."""
@@ -94,69 +92,24 @@ def palletize_any_angle(robot):
 
     return pallet_grid
 
-def palletize(robot):
-    """Palletizing function to set reference frame for well plate by setting 3 
-    points: origin, x-axis point, and y-axis point.
-    
-    Might not need y-point.
-    """
-    start_pos = [0, 0, -97, 0]
-    robot.MoveJoints(*start_pos)
-    print('Set reference frame for well plate by setting 3 points: origin, x-axis point, and y-axis point.')
-    robot.WaitIdle(60)
-    robot.DeactivateRobot()
-
-    
-    num_rows = 8
-    num_cols = 12
-    pallet_grid = np.zeros([num_rows, num_cols, 4])  # Example grid size for a 96-well plate (12 columns x 8 rows A-H)
-
-    origin = teach_point(robot, 'origin point')
-    x_axis_point = teach_point(robot, 'last row point')
-    y_axis_point = teach_point(robot, 'last column point')
-    
-
-    for i in range(pallet_grid.shape[0]):
-        for j in range(pallet_grid.shape[1]):
-            # Calculate the position of each well based on the origin and axis points
-            x_offset = (x_axis_point[0] - origin[0]) * i / (pallet_grid.shape[0] - 1)
-            y_offset = (y_axis_point[1] - origin[1]) * j / (pallet_grid.shape[1] - 1)
-            well_position = [origin[0] + x_offset, origin[1] + y_offset, 33, 0]
-            pallet_grid[i, j] = well_position  # Store the position of each well in the grid
-
-    return pallet_grid
-
 def move_to_well_pos(robot, well_positions, well_row, well_col):
     """Move the robot to a specific well position."""
 
-    appr_dist = 20 # change how much spindle moves up and down.
-    row = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'][well_row]
+    #appr_dist = 20 # change how much spindle moves up and down.
+    #row = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'][well_row]
     well_position = well_positions[well_row, well_col]
     # print(f'Moving to well ({row}, {well_col+1}) at position: {well_position}')
     robot.MoveJump(*well_position)
     robot.WaitIdle(60)
 
-def iterate_well_positions(robot):
-    """Simple example for connecting to a Mecademic robot and moving it."""
-
-    # create grid of well positions based on palletizing function
-    well_positions = palletize(robot)
-
-    print('Iterating through well positions...')
-    start_robot(robot, speed=50)  # Ensure the robot is started before moving
-
-    for i in range(well_positions.shape[0]):
-        for j in range(well_positions.shape[1]):
-            move_to_well_pos(robot, well_positions, i, j)  # Move to the well position
-
 def patterns(pattern_id, index):
     match pattern_id:
         case 0:  # column-first
-            row = index % 8  # row cycling (A-H)
-            col = (index // 8) % 12  # column cycling (1-12)
+            row = index % num_rows  # row cycling (A-H)
+            col = (index // num_rows) % num_cols  # column cycling (1-12)
         case 1:  # row-first
-            col = index % 12  # column cycling (1-12)
-            row = (index // 12) % 8  # row cycling (A-H)
+            col = index % num_cols  # column cycling (1-12)
+            row = (index // num_cols) % num_rows  # row cycling (A-H)
         case 2:  # zig-zag diagonally            
             # Find which diagonal the index falls into
             diag_index = np.searchsorted(np.cumsum(diag_counts), index, side='right')
@@ -179,11 +132,18 @@ def patterns(pattern_id, index):
                 else:
                     row = pos_in_diag
                     col = diag_index - pos_in_diag
+        case 3:  # snaking pattern
+            row = (index // num_cols) % num_rows
+            if (index // num_cols) % 2 == 0:
+                col = index % num_cols
+            else:
+                col = num_cols - 1 - (index % num_cols)
+        
 
     return row, col
 
 
-def do_until_input(robot, well_positions, action_func, pattern_id=0, prompt='Press Enter to stop the action...'):
+def do_until_input(robot, well_positions, action_func, speed=25, pattern_id=0, prompt='Press Enter to stop the action...'):
     """
     Perform an action in a loop until the operator presses Enter.
     
@@ -200,7 +160,7 @@ def do_until_input(robot, well_positions, action_func, pattern_id=0, prompt='Pre
         stop_event.set()
     
     def action_thread():
-        start_robot(robot, speed=100)  # Ensure the robot is started before moving
+        start_robot(robot, speed=int(speed))  # Ensure the robot is started before moving
         index = 0
           # Get the well positions once before starting the loop
         while not stop_event.is_set():
@@ -223,11 +183,12 @@ def do_until_input(robot, well_positions, action_func, pattern_id=0, prompt='Pre
 if __name__ == "__main__":
     with mdr.Robot() as robot:
         robot.Connect(address='192.168.0.100', disconnect_on_exception=False)
+        speed = int(input('Enter robot speed (1-100, default 25): ') or 25)
 
         while(True):
-            start_robot(robot, speed=100)
+            start_robot(robot, speed=speed)
             well_positions = palletize_any_angle(robot)
             #iterate_well_positions(robot)
-            pattern = int(input('0: column-first pattern \n1: row-first pattern \n2: zig-zag diagonal pattern \nPress Enter to start...\n'))
-            do_until_input(robot, well_positions, move_to_well_pos, pattern_id=pattern, prompt="Press Enter to reset well positions...")
+            pattern = int(input('0: column-first pattern \n1: row-first pattern \n2: zig-zag diagonal pattern \n3: snaking pattern \nPress Enter to start...\n') or 0)
+            do_until_input(robot, well_positions, move_to_well_pos, speed=speed, pattern_id=pattern, prompt="Press Enter to reset well positions...")
     print('Now disconnected from the robot.')

@@ -3,6 +3,15 @@ import math
 
 # calculate row and column position based on pattern and index
 
+# def spiral_pattern(num_rows, num_cols):
+#     # Calculate the layer of the spiral
+
+#     spiral_index = np.zeros((num_rows*num_cols, 2))
+    
+
+    
+#     return spiral_index
+
 def diagonal_pattern(index, num_rows, num_cols):
     num_diag = (num_rows - 1) + (num_cols - 1) + 1
     d = np.arange(num_diag)
@@ -42,5 +51,5 @@ num_rows = 8
 num_cols = 12
 
 for index in range(num_rows * num_cols):
-    row, col = diagonal_pattern(index, num_rows, num_cols)
-    #print(f"Index: {index}, Row: {row}, Column: {col}")
+    row, col = spiral_pattern(index, num_rows, num_cols)
+    print(f"Index: {index}, Row: {row}, Column: {col}")

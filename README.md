@@ -10,10 +10,19 @@ For more examples and detailed usage of Robot class, see [MecademicPy GitHub](ht
 ### Overview
 This project is used as a demo for Olympus Controls + Mecademic, and requires a direct network connection to the robot. No additional peripherals, sensors, grippers, or safety functionality is included in this project example. Basic wiring following the [safety installation guide](https://resources.mecademic.com/en/doc/MC-UM-MCS500/latest/manual/safety.html) should be sufficient. A pdf of the manual is provided in the files.
 
-1. Run `DMEMS_2026_Mcs500_Demo.py`.
-2. Teach point A1 and A12 following prompts.
-3. Choose pattern to iterate through well positions.
-4. Press Enter to pause and reteach points.
+1. Connect to MCS500 (192.168.0.100) and set to monitor mode.
+2. Run `DMEMS_2026_Mcs500_Demo.py`.
+3. Set speed from 1-100.
+4. Teach point A1 and A12 following prompts.
+5. Choose pattern to iterate through well positions.
+6. Press Enter to pause and reteach points.
+
+### Patterns
+There are currently 4 available patterns:
+1. Column-first starting from left column to right column
+2. Row-first starting from top row to bottom row
+3. Zig-Zag from top left to bottom right
+4. Snake starting from top left and snaking through
 
 ### Diagonal Zig-Zag
 The diagonal pattern was a substantial amount of thinking and effort. I will do my best to describe the algorithm's approach and how it is implemented in the program. 
