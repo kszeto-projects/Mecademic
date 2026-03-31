@@ -26,5 +26,19 @@ def pattern(index):
 ```
 
 #### 1. Calculate Diagonal Counts:
+The first step is to calculate the number of well positions in each diagonal. Let's denote the smaller row dimension as `m` and the larger column dimension as `n`. The count for the first diagonal starts at 1 and increases by one up to the `m`^th dimension. Then the diagonal counts stay the same until the `n`^th diagonal. It then decreases by 1 until the `(m+n-1)`th diagonal. For example, the diagonal counts for an 8x12 grid is: `[1,2,3,4,5,6,7,8,8,8,8,8,7,6,5,4,3,2,1]`
 
 
+#### 2. Calculate Diagonal Index and Position:
+Next we need to know which diagonal the index falls into, and which position in that diagonal. This gives us enough information to figure out the row and column indices. To calculate the diagonal index, we compute the cumulative sum of the counts:
+
+`cumulative sum = [1,3,6,10,15,21,28,36,44,52,60,68,75,81,86,90,93,95,96]`
+
+and find the diagonal based on the index. For example, if the index is 32, the diagonal index would be 7.
+
+The position in the diagonal can be calculated by subtracting the cumulative sum of the previous diagonal index from the index. For example, if the index is 32 again, the diagonal index is 7 and the corresponding cumulative sum of the previous diagonal index is 28. The position in the diagonal would return `32 - 28 = 4`.
+
+#### 3. Calculate Row and Column Index:
+We can observe the pattern in the file, diagonal_zig_zag_template, and also confirm with the sample diagonal zig-zag python tool, to see that if the diagonal index is even, the column index follows the position value (up until the smaller row dimension). If the diagonal index is odd, the row index follows the position value until the diagonal index is greater than the larger column dimension.
+
+This allows flexibility into the well plate dimensions rather than using a lookup table.

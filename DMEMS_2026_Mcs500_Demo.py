@@ -15,7 +15,7 @@ import time
 spacing = 9  # Spacing between wells in mm
 num_rows = 8
 num_cols = 12
-num_diag = (num_rows - 1) + (num_cols - 1) + 1
+num_diag = num_rows + num_cols - 1
 d = np.arange(num_diag)
 
 # Calculate the number of elements in each diagonal
