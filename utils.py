@@ -1,13 +1,5 @@
-#!/usr/bin/env python3
-"""
-This is a well-plate dispensing/palletizing example showing how to use the mecademicpy API with a Mecademic robot.
-This example connects to a robot at IP address 192.168.0.100, activates it, and loops through the well plate positions.
-You can change the pattern of movement by changing the pattern_id parameter in the do_until_input function.
-"""
-
 import mecademicpy.robot as mdr
 import numpy as np
-import threading
 import time
 
 # Global Variables
@@ -26,6 +18,15 @@ def wait_for_input(prompt='Press Enter to continue...'):
     input(prompt)
 
 def teach_point(robot, point_name):
+    if point_name == 'dispense position':
+        curr_pos = robot.GetPose()
+        print(f'Current position: {curr_pos}')
+        curr_pos[2] += 10  # Move up by 10mm for picking
+        print(f'Updated height for picking: {curr_pos}')
+        robot.ActivateRobot()
+        robot.MovePose(*curr_pos)
+        robot.WaitIdle(60)
+        robot.DeactivateRobot()
     wait_for_input(f'Set the robot to the {point_name} and press Enter...')
     robot.ActivateRobot()
     point = robot.GetPose()
@@ -33,23 +34,23 @@ def teach_point(robot, point_name):
     robot.DeactivateRobot()
     return point
 
-def start_robot(robot,speed=20):
-    """Start the robot by activating it."""
-    # Do not need to home 4-axis SCARA
+def start_robot(robot, speed=25):
     robot.ResetError()
-    robot.ActivateRobot()
     robot.SetJointVel(speed)
     robot.SetJointAcc(speed)
     robot.SetCartLinVel(speed*(50))
-    robot.SetCartAngVel(speed*(50))
     robot.SetCartAcc(speed)
-    robot.SetMoveJumpApproachVel(0,0,0,0)
-    robot.SetConf(-1)
+    if robot.GetRobotInfo().num_joints == 4:
+        robot.ActivateRobot()
+        robot.SetCartAngVel(speed*(50))
+    elif robot.GetRobotInfo().num_joints == 6:
+        robot.ActivateAndHome()
+        robot.SetCartAngVel(speed*(10))
 
 def palletize_any_angle(robot):
     """Improved palletizing function that allows for any angle of the well plate."""
     # prepare robot for moving by hand to teach points
-    start_pos = [0, 0, -98.5, 0]
+    start_pos = [0, 0, -102, 0]
     robot.MoveJoints(*start_pos)
     print('Set reference frame for well plate by setting 2 points: origin and y-axis point.')
     robot.WaitIdle(60)
@@ -91,16 +92,6 @@ def palletize_any_angle(robot):
 
     return pallet_grid
 
-def move_to_well_pos(robot, well_positions, well_row, well_col):
-    """Move the robot to a specific well position."""
-
-    #appr_dist = 20 # change how much spindle moves up and down.
-    #row = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'][well_row]
-    well_position = well_positions[well_row, well_col]
-    # print(f'Moving to well ({row}, {well_col+1}) at position: {well_position}')
-    robot.MoveJump(*well_position)
-    robot.WaitIdle(60)
-
 def patterns(pattern_id, index):
     match pattern_id:
         case 0:  # column-first
@@ -141,53 +132,45 @@ def patterns(pattern_id, index):
 
     return row, col
 
+def move_to_well_pos(robot, well_positions, well_row, well_col):
+    """Move the robot to a specific well position."""
 
-def do_until_input(robot, well_positions, action_func, speed=25, pattern_id=0, prompt='Press Enter to stop the action...'):
-    """
-    Perform an action in a loop until the operator presses Enter.
-    
-    :param robot: The robot object.
-    :param well_positions: The grid of well positions.
-    :param action_func: A function that performs the action (e.g., moving the robot).
-    :param pattern: parameter to specify the pattern of movement (e.g., row-first, column-first, etc.)
-    :param prompt: prompt to display to the user when waiting for input.
-    """
-    stop_event = threading.Event()
-    
-    def input_thread():
-        wait_for_input(prompt)
-        stop_event.set()
-    
-    def action_thread():
-        start_robot(robot, speed=int(speed))  # Ensure the robot is started before moving
-        index = 0
-          # Get the well positions once before starting the loop
-        while not stop_event.is_set():
-            row = index % 8  # row cycling (A-H)
-            col = (index // 8) % 12  # column cycling (1-12)
-            row, col = patterns(pattern_id, index)
-            action_func(robot, well_positions, row, col)
-            index += 1
-            index = index % (num_rows * num_cols)
-            time.sleep(0.1)  # Small delay to avoid overwhelming the robot
-    
-    # Start both threads
-    t1 = threading.Thread(target=input_thread)
-    t2 = threading.Thread(target=action_thread)
-    t1.start()
-    t2.start()
-    t1.join()  # Wait for input thread to finish
-    t2.join()  # Wait for action thread to finish
+    #appr_dist = 20 # change how much spindle moves up and down.
+    #row = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'][well_row]
+    well_position = well_positions[well_row, well_col]
+    # print(f'Moving to well ({row}, {well_col+1}) at position: {well_position}')
+    if robot.GetRobotInfo().num_joints == 6:
+        well_position = [well_position[0], well_position[1], well_position[2], 0, 0, well_position[3]]
+    robot.MoveJump(*well_position)
+    robot.WaitIdle(60)
 
-if __name__ == "__main__":
-    with mdr.Robot() as robot:
-        robot.Connect(address='192.168.0.101', disconnect_on_exception=False)
-        speed = int(input('Enter robot speed (1-100, default 25): ') or 25)
+def pick_vial(robot):
+    """Move the robot to the pick position and simulate picking a vial."""
+    robot.SetBlending(0)
+    robot.MovePose(168.75, -102.274075, 80, -180, 0, -150)
+    robot.SetJointVel(25)
+    robot.MoveLin(168.75, -102.274075, 58, -180, 0, -150)
+    time.sleep(0.2)  # Simulate time taken to pick the vial
+    robot.MoveLin(168.75, -102.274075, 90, -180, 0, -150)
+    robot.MovePose(180, 0, 100, 180, 0, 120)
+    robot.SetBlending(100)
+    robot.SetJointVel(150)
+    robot.MovePose(180, 0, 100, 180, 10, 120)
+    robot.MovePose(180, 0, 100, -170, 0, 120)
+    robot.MovePose(180, 0, 100, 180, -10, 120)
+    robot.MovePose(180, 0, 100, -190, 0, 120)
+    robot.MovePose(180, 0, 100, 180, 0, 120)
+    robot.MovePose(180, 0, 100, 180, 10, 120)
+    robot.MovePose(180, 0, 100, -170, 0, 120)
+    robot.MovePose(180, 0, 100, 180, -10, 120)
+    robot.MovePose(180, 0, 100, -190, 0, 120)
+    robot.MovePose(180, 0, 100, 180, 0, 120)
 
-        while(True):
-            start_robot(robot, speed=speed)
-            well_positions = palletize_any_angle(robot)
-            #iterate_well_positions(robot)
-            pattern = int(input('0: column-first pattern \n1: row-first pattern \n2: zig-zag diagonal pattern \n3: snaking pattern \nPress Enter to start...\n') or 0)
-            do_until_input(robot, well_positions, move_to_well_pos, speed=speed, pattern_id=pattern, prompt="Press Enter to reset well positions...")
-    print('Now disconnected from the robot.')
+    robot.SetBlending(0)
+    robot.SetJointVel(25)
+    robot.MovePose(137.25, 122.108989, 90, 180, 0, 120)
+    robot.MovePose(137.25, 122.108989, 60, 180, 0, 120)
+    time.sleep(0.2)  # Simulate time taken to dispense the vial
+    robot.SetBlending(100)
+    robot.SetJointVel(150)
+    robot.MovePose(137.25, 122.108989, 80, 180, 0, 120)
