@@ -15,7 +15,7 @@ mcs500_ip = "192.168.0.101"
 speed = 100
 allow_change_speed = False
 
-def do_until_input(mcs, meca, well_positions, mcs_func, meca_func, pattern_id=0, prompt='Press Enter to stop the action...'):
+def do_until_input(mcs, meca, well_positions, mcs_func, meca_func, speed, pattern_id=0, prompt='Press Enter to stop the action...'):
     """
     Perform an action in a loop until the operator presses Enter.
     
@@ -33,9 +33,8 @@ def do_until_input(mcs, meca, well_positions, mcs_func, meca_func, pattern_id=0,
         stop_event.set()
     
     def mcs_thread():
-        speed = 100
-        start_robot(mcs, speed)  # Ensure the robot is started before moving
-        start_robot(meca, speed)
+        start_robot(mcs, speed=speed)  # Ensure the robot is started before moving
+        start_robot(meca, speed=speed)
         index = 0
           # Get the well positions once before starting the loop
         while not stop_event.is_set():
@@ -82,6 +81,8 @@ if __name__ == "__main__":
         speed = int(input('Enter robot speed (1-100, default 25): ') or 25)
     else:
         speed = 100
+
+    # print(f'\nOperating Speed: {speed}')
     
     try:
         start_robot(meca500, speed=speed)
@@ -98,6 +99,6 @@ if __name__ == "__main__":
         dispense_position = teach_point(mcs500, 'dispense position')
         dispense_position[3] += 10
         pattern = int(input('0: column-first pattern \n1: row-first pattern \n2: zig-zag diagonal pattern \n3: snaking pattern \nPress Enter to start...\n') or 0)
-        do_until_input(mcs500, meca500, well_positions, move_to_well_pos, pick_vial, pattern_id=pattern)
+        do_until_input(mcs500, meca500, well_positions, move_to_well_pos, pick_place_vial, speed=speed, pattern_id=pattern)
 
     print('Now disconnected from the robot.')

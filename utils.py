@@ -35,17 +35,21 @@ def teach_point(robot, point_name):
     return point
 
 def start_robot(robot, speed=25):
+    print(f'Robot: {robot.GetRobotInfo().model} \nOperating Speed: {speed}')
     robot.ResetError()
     robot.SetJointVel(speed)
     robot.SetJointAcc(speed)
-    robot.SetCartLinVel(speed*(50))
-    robot.SetCartAcc(speed)
+    robot.SetCartAcc(6*speed)
     if robot.GetRobotInfo().num_joints == 4:
         robot.ActivateRobot()
         robot.SetCartAngVel(speed*(50))
+        robot.SetCartLinVel(speed*(50))
+        robot.SetMoveJumpApproachVel(0,0,0,0)
+        robot.SetConf(-1)
     elif robot.GetRobotInfo().num_joints == 6:
         robot.ActivateAndHome()
         robot.SetCartAngVel(speed*(10))
+        # robot.setCartLinVel(25*50)
 
 def palletize_any_angle(robot):
     """Improved palletizing function that allows for any angle of the well plate."""
@@ -139,38 +143,34 @@ def move_to_well_pos(robot, well_positions, well_row, well_col):
     #row = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'][well_row]
     well_position = well_positions[well_row, well_col]
     # print(f'Moving to well ({row}, {well_col+1}) at position: {well_position}')
-    if robot.GetRobotInfo().num_joints == 6:
-        well_position = [well_position[0], well_position[1], well_position[2], 0, 0, well_position[3]]
     robot.MoveJump(*well_position)
     robot.WaitIdle(60)
 
-def pick_vial(robot):
+def pick_place_vial(robot):
     """Move the robot to the pick position and simulate picking a vial."""
+    low_speed = 25
+    high_speed = 100
     robot.SetBlending(0)
     robot.MovePose(168.75, -102.274075, 80, -180, 0, -150)
-    robot.SetJointVel(25)
+    robot.SetJointVel(low_speed)
     robot.MoveLin(168.75, -102.274075, 58, -180, 0, -150)
     time.sleep(0.2)  # Simulate time taken to pick the vial
     robot.MoveLin(168.75, -102.274075, 90, -180, 0, -150)
     robot.MovePose(180, 0, 100, 180, 0, 120)
     robot.SetBlending(100)
-    robot.SetJointVel(150)
-    robot.MovePose(180, 0, 100, 180, 10, 120)
-    robot.MovePose(180, 0, 100, -170, 0, 120)
-    robot.MovePose(180, 0, 100, 180, -10, 120)
-    robot.MovePose(180, 0, 100, -190, 0, 120)
-    robot.MovePose(180, 0, 100, 180, 0, 120)
-    robot.MovePose(180, 0, 100, 180, 10, 120)
-    robot.MovePose(180, 0, 100, -170, 0, 120)
-    robot.MovePose(180, 0, 100, 180, -10, 120)
-    robot.MovePose(180, 0, 100, -190, 0, 120)
+    robot.SetJointVel(int(high_speed*1.5))
+    for i in range(3):
+        robot.MovePose(180, 0, 100, 180, 10, 120)
+        robot.MovePose(180, 0, 100, -170, 0, 120)
+        robot.MovePose(180, 0, 100, 180, -10, 120)
+        robot.MovePose(180, 0, 100, -190, 0, 120)
     robot.MovePose(180, 0, 100, 180, 0, 120)
 
     robot.SetBlending(0)
-    robot.SetJointVel(25)
+    robot.SetJointVel(low_speed)
     robot.MovePose(137.25, 122.108989, 90, 180, 0, 120)
-    robot.MovePose(137.25, 122.108989, 60, 180, 0, 120)
+    robot.MoveLin(137.25, 122.108989, 60, 180, 0, 120)
     time.sleep(0.2)  # Simulate time taken to dispense the vial
     robot.SetBlending(100)
-    robot.SetJointVel(150)
-    robot.MovePose(137.25, 122.108989, 80, 180, 0, 120)
+    robot.SetJointVel(int(high_speed*1.5))
+    robot.MoveLin(137.25, 122.108989, 80, 180, 0, 120)
